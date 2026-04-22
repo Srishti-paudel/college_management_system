@@ -1,0 +1,68 @@
+const User =require('../model/userModel')
+const express=require('express')
+    const app=express()
+  app.use(express.json())
+  require('dotenv').config();
+ const registerUser= async(req,res)=>{
+    const {name,Faculty,shift, Regd_No,email,password}=req.body
+    if(!name ||!Faculty || !shift || !Regd_No ||!email ||!password){
+        return res.status(400).json({
+            message:"All fields are required"
+        })
+    }
+    const isExistingUser=await User.findOne({
+        where:{
+            Regd_No:Regd_No,
+            email:email
+        
+    }
+})
+ if (isExistingUser) {
+        return res.status(400).json({
+            message: "User already exists"
+        })
+    }
+     User.create({
+        name,
+        Faculty,
+        shift,
+        email,
+        password:bcrypt.hashSync(password,10),
+        Regd_No,
+
+       // userPassword: bcrypt.hashSync(userPassword, 10) // hashing password
+    })
+    return res.status(201).json({
+        message: "User registered successfully"
+    })
+}
+const loginUser = async(req,res)=>{
+    const {email,password}=req.body
+    if(!email || !password){
+        return res.status(400).json({
+            message:"All fields are required"
+        })
+    }
+    const isExistingUser=await User.findOne({where:{
+        email:email
+    }})
+     const ispasswordvalid =bcrypt.compareSync(password,isExistingUser.password)
+if(!ispasswordvalid){
+    return res.status(400).json({
+        message:"Invalid credentials",
+    })
+    const token = jwt.sign(
+        { userId: user.id, role: user.userRole },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" }
+    )
+
+    res.json({ token })
+}
+
+    
+
+}
+module.exports={
+    registerUser,loginUser
+}
