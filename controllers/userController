@@ -1,3 +1,5 @@
+const jwt=require('jsonwebtoken')
+
 const User =require('../model/userModel')
 const express=require('express')
     const app=express()
@@ -51,6 +53,7 @@ if(!ispasswordvalid){
     return res.status(400).json({
         message:"Invalid credentials",
     })
+}
     const token = jwt.sign(
         { userId: user.id, role: user.userRole },
         process.env.JWT_SECRET,
@@ -58,11 +61,41 @@ if(!ispasswordvalid){
     )
 
     res.json({ token })
+
+
 }
+const logoutUser=async(req,res)=>{
+    res.clearCookie("token")
+}
+const renderForgotpassword=(req,res)=>{
+    res.json({message:"login"})
+}
+const handleforgotpaswword=async(req,res)=>{
+  const {email}=req.body
+  if(!email){
+    res.send('email not found')
+  }
+  else{
+    const data=await users.findOne({
+        where:{
+            email:email,
+        }
+    });
+  }
+if(!data){
+    res.send('email not found')
+}
+else{
+    const generatedOtp=Math.floor(100000+Math.random()*100000)
 
-    
-
+const details={
+    email:email,
+    subject:"plaese reset you pasword through this otp",
+    text:"Your Otp for reseting passsword is" +generatedOtp
+}
+sendEmail(details)
+}
 }
 module.exports={
-    registerUser,loginUser
+    registerUser,loginUser,handleforgotpaswword,logoutUser
 }
