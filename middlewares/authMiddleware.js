@@ -27,4 +27,11 @@ const isAdmin = (req, res, next) => {
 
     next()
 }
-module.exports={isAuthenticated,isAdmin}
+const isTeacher =(req,res,next)=>{
+    if(req.user.role!=='teacher' &&req.user.role!=="admin")
+    {
+        return res.status(400).json({message:"Access denied"})
+    }
+    next()
+}
+module.exports={isAuthenticated,isAdmin,isTeacher}

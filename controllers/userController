@@ -55,7 +55,9 @@ if(!ispasswordvalid){
     })
 }
     const token = jwt.sign(
-        { userId: user.id, role: user.userRole },
+        { userId: isExistingUser.id,
+                Role: isExistingUser.Role,     // ← capital R, matches your DB
+                name: isExistingUser.name  },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }
     )
