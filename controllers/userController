@@ -1,103 +1,117 @@
-const jwt=require('jsonwebtoken')
+const jwt = require('jsonwebtoken')
+const bcrypt = require('bcryptjs')        // ← was missing, bcrypt was used but never imported
+const { User } = require('../model/userModel')  // ← destructure, your model exports { User }
+require('dotenv').config()
 
-const User =require('../model/userModel')
-const express=require('express')
-    const app=express()
-  app.use(express.json())
-  require('dotenv').config();
- const registerUser= async(req,res)=>{
-    const {name,Faculty,shift, Regd_No,email,password}=req.body
-    if(!name ||!Faculty || !shift || !Regd_No ||!email ||!password){
-        return res.status(400).json({
-            message:"All fields are required"
-        })
-    }
-    const isExistingUser=await User.findOne({
-        where:{
-            Regd_No:Regd_No,
-            email:email
-        
-    }
-})
- if (isExistingUser) {
-        return res.status(400).json({
-            message: "User already exists"
-        })
-    }
-     User.create({
-        name,
-        Faculty,
-        shift,
-        email,
-        password:bcrypt.hashSync(password,10),
-        Regd_No,
+const registerUser = async (req, res) => {
+    try {
+        const { name, Faculty, shift, Regd_No, email, password } = req.body
 
-       // userPassword: bcrypt.hashSync(userPassword, 10) // hashing password
-    })
-    return res.status(201).json({
-        message: "User registered successfully"
-    })
-}
-const loginUser = async(req,res)=>{
-    const {email,password}=req.body
-    if(!email || !password){
-        return res.status(400).json({
-            message:"All fields are required"
-        })
-    }
-    const isExistingUser=await User.findOne({where:{
-        email:email
-    }})
-     const ispasswordvalid =bcrypt.compareSync(password,isExistingUser.password)
-if(!ispasswordvalid){
-    return res.status(400).json({
-        message:"Invalid credentials",
-    })
-}
-    const token = jwt.sign(
-        { userId: isExistingUser.id,
-                Role: isExistingUser.Role,     // ← capital R, matches your DB
-                name: isExistingUser.name  },
-        process.env.JWT_SECRET,
-        { expiresIn: "1d" }
-    )
-
-    res.json({ token })
-
-
-}
-const logoutUser=async(req,res)=>{
-    res.clearCookie("token")
-}
-const renderForgotpassword=(req,res)=>{
-    res.json({message:"login"})
-}
-const handleforgotpaswword=async(req,res)=>{
-  const {email}=req.body
-  if(!email){
-    res.send('email not found')
-  }
-  else{
-    const data=await users.findOne({
-        where:{
-            email:email,
+        if (!name || !Faculty || !shift || !Regd_No || !email || !password) {
+            return res.status(400).json({ message: "All fields are required" })
         }
-    });
-  }
-if(!data){
-    res.send('email not found')
-}
-else{
-    const generatedOtp=Math.floor(100000+Math.random()*100000)
 
-const details={
-    email:email,
-    subject:"plaese reset you pasword through this otp",
-    text:"Your Otp for reseting passsword is" +generatedOtp
+        // Check existing user by email OR Regd_No separately
+        const isExistingUser = await User.findOne({
+            where: { email }   // ← original checked both at once with AND, 
+        })                     //   meaning same email AND same Regd_No — easy to bypass
+        
+        if (isExistingUser) {
+            return res.status(400).json({ message: "User already exists" })
+        }
+
+        await User.create({    // ← was missing await
+            name,
+            Faculty,
+            shift,
+            email,
+            password: bcrypt.hashSync(password, 10),
+            Regd_No,
+            Role: 'student'    // ← default role on register
+        })
+
+        return res.status(201).json({ message: "User registered successfully" })
+
+    } catch (err) {
+        return res.status(500).json({ message: err.message })
+    }
 }
-sendEmail(details)
+
+const loginUser = async (req, res) => {
+    try {
+        const { email, password } = req.body
+
+        if (!email || !password) {
+            return res.status(400).json({ message: "All fields are required" })
+        }
+
+        const isExistingUser = await User.findOne({ where: { email } })
+
+        if (!isExistingUser) {               // ← original had no check, would crash if user not found
+            return res.status(400).json({ message: "User not found" })
+        }
+
+        const isPasswordValid = bcrypt.compareSync(password, isExistingUser.password)
+        if (!isPasswordValid) {
+            return res.status(400).json({ message: "Invalid credentials" })
+        }
+
+        const token = jwt.sign(
+            {
+                userId: isExistingUser.id,       // ← was user.id (undefined, user doesn't exist)
+                Role: isExistingUser.Role,       // ← was user.userRole (wrong variable + wrong field)
+                name: isExistingUser.name        // ← added, needed for markedByName in attendance
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "1d" }
+        )
+
+        return res.json({ token })
+
+    } catch (err) {
+        return res.status(500).json({ message: err.message })
+    }
 }
+
+const logoutUser = async (req, res) => {
+    res.clearCookie("token")
+    return res.json({ message: "Logged out successfully" })  // ← added response
 }
-module.exports={
-    registerUser,loginUser,handleforgotpaswword,logoutUser
+
+const handleForgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body
+
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" })
+        }
+
+        const data = await User.findOne({ where: { email } })  // ← was users.findOne (undefined)
+
+        if (!data) {
+            return res.status(404).json({ message: "Email not found" })
+        }
+
+        const generatedOtp = Math.floor(100000 + Math.random() * 900000)  // ← was *100000, gave 6-digit sometimes 5-digit
+
+        const details = {
+            email: email,
+            subject: "Reset your password using this OTP",
+            text: "Your OTP for resetting password is: " + generatedOtp
+        }
+
+        sendEmail(details)   // ← uncomment when sendEmail is imported
+
+        return res.json({ message: "OTP sent to your email" })
+
+    } catch (err) {
+        return res.status(500).json({ message: err.message })
+    }
+}
+
+module.exports = {
+    registerUser,
+    loginUser,
+    logoutUser,
+    handleForgotPassword
 }

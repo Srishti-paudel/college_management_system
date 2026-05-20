@@ -15,10 +15,11 @@ const upload=multer({multer:multer})
 const adminRoutes = require("./Routes/adminRoute")
 const noticeRoute = require("./Routes/noticeRoute")
 const eventRoute = require("./Routes/eventRoute")
-
+const attendenceRoute=require('./Routes/attendenceRoute')
 app.use("/api/admin", adminRoutes)
 app.use("/api/notice", noticeRoute)
 app.use("/api/event", eventRoute)
+app.use("/api/attendence", attendenceRoute)
 // Initialize database and seed admin user
 const initializeApp = async () => {
     await connectDb();
